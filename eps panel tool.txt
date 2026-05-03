@@ -1,0 +1,145 @@
+import React, { useState, useRef } from "react";
+
+function NumberInput({ label, value, onChange }) {
+  return (
+    <div className="flex flex-col">
+      <label className="text-xs text-gray-400 mb-1">{label}</label>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+        className="p-2 rounded-xl bg-black/30 backdrop-blur border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+      />
+    </div>
+  );
+}
+
+export default function WallPanelTool() {
+  const [wallWidth, setWallWidth] = useState(20);
+  const [wallHeight, setWallHeight] = useState(10);
+  const [panelWidth, setPanelWidth] = useState(4);
+  const [panelHeight, setPanelHeight] = useState(2);
+
+  const [doors, setDoors] = useState([{ width: 3, height: 7, x: 2 }]);
+  const [windows, setWindows] = useState([{ width: 4, height: 3, x: 8, y: 4 }]);
+
+  const [rotation, setRotation] = useState({ x: 20, y: -20 });
+  const dragging = useRef(false);
+
+  const handleMouseDown = () => (dragging.current = true);
+  const handleMouseUp = () => (dragging.current = false);
+  const handleMouseMove = (e) => {
+    if (!dragging.current) return;
+    setRotation((prev) => ({
+      x: prev.x + e.movementY * 0.5,
+      y: prev.y + e.movementX * 0.5,
+    }));
+  };
+
+  const updateDoor = (i, key, val) => {
+    const copy = [...doors];
+    copy[i][key] = val;
+    setDoors(copy);
+  };
+
+  const updateWindow = (i, key, val) => {
+    const copy = [...windows];
+    copy[i][key] = val;
+    setWindows(copy);
+  };
+
+  const cols = Math.ceil(wallWidth / panelWidth);
+  const rows = Math.ceil(wallHeight / panelHeight);
+
+  const wallArea = wallWidth * wallHeight;
+  const doorArea = doors.reduce((s, d) => s + d.width * d.height, 0);
+  const windowArea = windows.reduce((s, w) => s + w.width * w.height, 0);
+  const netArea = Math.max(0, wallArea - (doorArea + windowArea));
+  const panelArea = panelWidth * panelHeight || 1;
+  const panelsRequired = Math.ceil(netArea / panelArea);
+
+  const panelLines = [];
+  for (let i = 1; i < cols; i++) {
+    panelLines.push(
+      <div key={`v-${i}`} style={{ position: "absolute", left: `${(i / cols) * 100}%`, top: 0, bottom: 0, width: "1px", background: "rgba(255,255,255,0.2)" }} />
+    );
+  }
+  for (let i = 1; i < rows; i++) {
+    panelLines.push(
+      <div key={`h-${i}`} style={{ position: "absolute", top: `${(i / rows) * 100}%`, left: 0, right: 0, height: "1px", background: "rgba(255,255,255,0.2)" }} />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black text-white p-6 flex justify-center" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
+
+      <div className="w-full max-w-6xl space-y-6">
+        <h1 className="text-3xl font-semibold text-center">Wall Panel Planner</h1>
+
+        <div className="grid md:grid-cols-2 gap-6">
+
+          {/* Glass Panel */}
+          <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl shadow-xl p-4 space-y-4">
+            <h2 className="font-medium">Inputs</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <NumberInput label="Wall Width" value={wallWidth} onChange={setWallWidth} />
+              <NumberInput label="Wall Height" value={wallHeight} onChange={setWallHeight} />
+              <NumberInput label="Panel Width" value={panelWidth} onChange={setPanelWidth} />
+              <NumberInput label="Panel Height" value={panelHeight} onChange={setPanelHeight} />
+            </div>
+
+            <h3 className="text-sm">Doors</h3>
+            {doors.map((d, i) => (
+              <div key={i} className="grid grid-cols-3 gap-2">
+                <NumberInput label="W" value={d.width} onChange={(v) => updateDoor(i, "width", v)} />
+                <NumberInput label="H" value={d.height} onChange={(v) => updateDoor(i, "height", v)} />
+                <NumberInput label="X" value={d.x} onChange={(v) => updateDoor(i, "x", v)} />
+              </div>
+            ))}
+
+            <h3 className="text-sm">Windows</h3>
+            {windows.map((w, i) => (
+              <div key={i} className="grid grid-cols-4 gap-2">
+                <NumberInput label="W" value={w.width} onChange={(v) => updateWindow(i, "width", v)} />
+                <NumberInput label="H" value={w.height} onChange={(v) => updateWindow(i, "height", v)} />
+                <NumberInput label="X" value={w.x} onChange={(v) => updateWindow(i, "x", v)} />
+                <NumberInput label="Y" value={w.y} onChange={(v) => updateWindow(i, "y", v)} />
+              </div>
+            ))}
+          </div>
+
+          {/* Glass Result */}
+          <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl shadow-xl p-4 space-y-4">
+            <h2 className="font-medium">Results</h2>
+            <div className="text-sm space-y-1">
+              <p>Wall: {wallArea} sqft</p>
+              <p>Cut: {doorArea + windowArea} sqft</p>
+              <p className="font-semibold">Net: {netArea} sqft</p>
+              <p>Panel: {panelArea} sqft</p>
+              <p className="font-semibold">Panels: {panelsRequired}</p>
+            </div>
+
+            <div className="flex justify-center">
+              <div onMouseDown={handleMouseDown} className="cursor-grab" style={{ width: 320, height: 220, perspective: "800px" }}>
+                <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.2)", transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`, position: "relative", backdropFilter: "blur(10px)" }}>
+                  {panelLines}
+
+                  {doors.map((d, i) => (
+                    <div key={i} style={{ position: "absolute", bottom: 0, left: `${(d.x / wallWidth) * 100}%`, width: `${(d.width / wallWidth) * 100}%`, height: `${(d.height / wallHeight) * 100}%`, background: "rgba(255,255,255,0.2)" }} />
+                  ))}
+
+                  {windows.map((w, i) => (
+                    <div key={i} style={{ position: "absolute", top: `${(w.y / wallHeight) * 100}%`, left: `${(w.x / wallWidth) * 100}%`, width: `${(w.width / wallWidth) * 100}%`, height: `${(w.height / wallHeight) * 100}%`, background: "rgba(59,130,246,0.4)" }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-center text-gray-400">Drag to rotate</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
